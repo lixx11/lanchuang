@@ -25,7 +25,7 @@ if __name__ == '__main__':
     video_begin = time.mktime(video_begin)
 
     cap = cv2.VideoCapture(video_file)
-    nb_frames = cap.get(CV_CAP_PROP_FRAME_COUNT)
+    nb_frames = int(cap.get(CV_CAP_PROP_FRAME_COUNT))
     fps = cap.get(CAP_PROP_FPS)
 
     labels = np.ones(nb_frames, dtype=np.int16) * -1  # initialize label as -1
