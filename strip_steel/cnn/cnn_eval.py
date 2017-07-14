@@ -17,6 +17,8 @@ tf.app.flags.DEFINE_string('data_file', None,
                            """Path of data file to evaluate.""")
 tf.app.flags.DEFINE_integer('batch_size', 1,
                            """Number of samples in a batch""")
+tf.app.flags.DEFINE_bool('center_only', True,
+                           """Only evaluate central crop.""")
 tf.app.flags.DEFINE_integer('nb_crop_per_image', 5,
                            """Number of crops for each image""")
 tf.app.flags.DEFINE_string('ckpt_file', None,
@@ -78,33 +80,47 @@ def eval():
                 image = imread(img_file)
                 t1 = time.time()
                 time_to_read_img += (t1 - t0)
-                x_range = image.shape[0] - crop_size
-                y_range = image.shape[1] - crop_size
-                xs = np.random.choice(x_range, nb_crop_per_image)
-                ys = np.random.choice(y_range, nb_crop_per_image)
-                probs = np.zeros(len(classes))
 
-                for (x, y) in zip(xs, ys):
+                if not FLAGS.center_only:
+                    x_range = image.shape[0] - crop_size
+                    y_range = image.shape[1] - crop_size
+                    xs = np.random.choice(x_range, nb_crop_per_image)
+                    ys = np.random.choice(y_range, nb_crop_per_image)
+                    prob = np.zeros(len(classes))
+                    for (x, y) in zip(xs, ys):
+                        crop = image[x:x+crop_size, y:y+crop_size]
+                        crop = crop.reshape((1, crop_size, crop_size, 1))   
+
+                        logits_value = sess.run(logits,
+                            feed_dict={images: crop})
+                        exp_logits = np.exp(logits_value)
+                        prob_ = exp_logits.T / np.sum(exp_logits, axis=1)
+                        prob += prob_.reshape(-1)
+                    prob /= float(nb_crop_per_image)
+                else:
+                    x = int((image.shape[0] - crop_size) / 2.)
+                    y = int((image.shape[1] - crop_size) / 2.)
                     crop = image[x:x+crop_size, y:y+crop_size]
-                    crop = crop.reshape((1, crop_size, crop_size, 1))
+                    crop = crop.reshape((1, crop_size, crop_size, 1))   
 
                     logits_value = sess.run(logits,
                         feed_dict={images: crop})
                     exp_logits = np.exp(logits_value)
                     prob = exp_logits.T / np.sum(exp_logits, axis=1)
-                    probs += prob.reshape(-1)
+                    prob = prob.reshape(-1)
+
+                pred_label = classes[np.argmax(prob)]
 
                 true_label = img_file.split('/')[-2]
-                pred_label = classes[np.argmax(probs)]
                 t2 = time.time()
                 eval_times.append(t2 - t1)
                 time_to_eval_img += (t2 - t1)
                 if true_label == pred_label:
-                    print('success')
+                    print('success(%.3f)' % prob.max())
                     nb_success += 1
                 else:
-                    print('failure: %s -> %s' % 
-                        (true_label, pred_label))
+                    print('failure(%.3f): %s -> %s' % 
+                        (prob.max(), true_label, pred_label))
                     nb_failure += 1
             end = time.time()
             print('time elapsed %.3f sec, %.3f(read img) + %.3f(eval img)' 
