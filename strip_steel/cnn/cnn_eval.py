@@ -14,51 +14,37 @@ import cnn_model
 
 FLAGS = tf.app.flags.FLAGS
 tf.app.flags.DEFINE_string('data_file', None,
-                           """Path of data file to evaluate, single path
-                           or multiple path in txt file.
-                           """)
+                           """Path of data file to evaluate.""")
 tf.app.flags.DEFINE_integer('batch_size', 1,
                            """Number of samples in a batch""")
 tf.app.flags.DEFINE_integer('nb_crop_per_image', 5,
                            """Number of crops for each image""")
 tf.app.flags.DEFINE_string('ckpt_file', None,
                             """Global step of ckpt file.""")
-tf.app.flags.DEFINE_string('class_def', None,
-                            """Class definition file.""")
-
 
 
 def eval():
     # parameters and options
     data_file = FLAGS.data_file
     crop_size = FLAGS.crop_size
-    class_def = FLAGS.class_def
     batch_size = FLAGS.batch_size
     nb_crop_per_image = FLAGS.nb_crop_per_image
 
     nb_success = 0
     nb_failure = 0
 
-    # get classes
-    classes = []
-    with open(class_def, 'r') as f:
-        lines = f.readlines()
-    for line in lines:
-        classes.append(re.sub('\n', '', line))
-
     # load data
-    _, ext = os.path.splitext(data_file)
-    if ext == '.jpg':  # single jpg to evaluate
-        img_files = [data_file]
-    elif ext == '.txt':  # multiple image
-        with open(data_file) as f:
-            img_files = f.readlines()
-    else:
-        print('Unsupported data file format: %s' % ext)
-        print('Please provide single image in jpg format or'
-            'multiple images in txt format.')
-        sys.exit()
+    with open(data_file) as f:
+        img_files = f.readlines()
     print('%d images to be evaluated' % len(img_files))
+
+    # get classes
+    class_strs = []
+    for f in img_files:
+        class_strs.append(f.split('/')[-2])
+    classes = np.unique(class_strs).tolist()
+    classes.sort()
+
 
     with tf.Graph().as_default():
         if FLAGS.use_fp16:
@@ -87,7 +73,7 @@ def eval():
             eval_times = []
             for i in range(len(img_files)):
                 img_file = re.sub('\n', '', img_files[i])
-                # print('processing %s' % img_file)
+                print('processing %s' % img_file)
                 t0 = time.time()
                 image = imread(img_file)
                 t1 = time.time()
@@ -113,13 +99,13 @@ def eval():
                 t2 = time.time()
                 eval_times.append(t2 - t1)
                 time_to_eval_img += (t2 - t1)
-                # if true_label == pred_label:
-                #     print('success')
-                #     nb_success += 1
-                # else:
-                #     print('failure: %s -> %s' % 
-                #         (true_label, pred_label))
-                #     nb_failure += 1
+                if true_label == pred_label:
+                    print('success')
+                    nb_success += 1
+                else:
+                    print('failure: %s -> %s' % 
+                        (true_label, pred_label))
+                    nb_failure += 1
             end = time.time()
             print('time elapsed %.3f sec, %.3f(read img) + %.3f(eval img)' 
                 % ((end - begin), time_to_read_img, time_to_eval_img))

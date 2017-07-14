@@ -2,7 +2,7 @@
 
 """
 Usage:
-    preprocessing.py <image_dir> <class_def>  [options]
+    preprocessing.py <image_dir>  [options]
 
 Options:
     -o --output=output.npz                  Output file [default: output.npz].
@@ -26,18 +26,17 @@ if __name__ == '__main__':
     # parse command options
     argv = docopt(__doc__)
     image_dir = argv['<image_dir>']
-    class_def = argv['<class_def>']
     test_split = float(argv['--test-split'])
     output_file = argv['--output']
 
     # get classes
-    classes = []
-    with open(class_def, 'r') as f:
-        lines = f.readlines()
-    for line in lines:
-        classes.append(re.sub('\n', '', line))
-
     file_list = glob('%s/*/*' % image_dir)
+
+    class_strs = []
+    for f in file_list:
+        class_strs.append(f.split('/')[-2])
+    classes = np.unique(class_strs).tolist()
+    classes.sort()
 
     # dataset splitting
     class_strs = []
