@@ -5,7 +5,7 @@ Usage:
     preprocessing.py <image_dir>  [options]
 
 Options:
-    -o --output=output.npz                  Output file [default: output.npz].
+    --prefix=output                         Prefix of output file [default: output].
     --test-split=0.2                        Test dataset ratio [default: 0.2].
     --save-split=True                       Whether to save splitting datasets [default: True].
 """
@@ -27,7 +27,7 @@ if __name__ == '__main__':
     argv = docopt(__doc__)
     image_dir = argv['<image_dir>']
     test_split = float(argv['--test-split'])
-    output_file = argv['--output']
+    prefix = argv['--prefix']
 
     # get classes
     file_list = glob('%s/*/*' % image_dir)
@@ -113,15 +113,14 @@ if __name__ == '__main__':
     images = np.asarray(images)
 
 
-    np.savez(output_file, images=images,
-                          labels=labels,
-                          crop_flags=crop_flags)
+    np.savez('%s-data.npz' % prefix, images=images,
+        labels=labels, crop_flags=crop_flags)
 
     if argv['--save-split'] == 'True':
-        with open('train.txt', 'w') as f:
+        with open('%s-train.txt' % prefix, 'w') as f:
             for i in range(len(train_files)):
                 f.write('%s\n' % train_files[i])   
 
-        with open('test.txt', 'w') as f:
+        with open('%s-test.txt' % prefix, 'w') as f:
             for i in range(len(test_files)):
                 f.write('%s\n' % test_files[i])
