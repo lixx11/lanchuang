@@ -7,6 +7,7 @@ from scipy.ndimage import imread
 import os
 import sys
 import re
+import time
 
 import cnn_model
 
@@ -32,6 +33,7 @@ def eval():
     data_file = FLAGS.data_file
     crop_size = FLAGS.crop_size
     class_def = FLAGS.class_def
+    batch_size = FLAGS.batch_size
     nb_crop_per_image = FLAGS.nb_crop_per_image
 
     nb_success = 0
@@ -64,7 +66,7 @@ def eval():
         else:
             FP = tf.float32
         images = tf.placeholder(FP, 
-                shape=[1, crop_size, crop_size, 1], 
+                shape=[batch_size, crop_size, crop_size, 1], 
                 name='image')
 
         # inference
@@ -79,36 +81,51 @@ def eval():
 
             saver.restore(sess, FLAGS.ckpt_file)
 
+            begin = time.time()
+            time_to_read_img = 0.
+            time_to_eval_img = 0.
+            eval_times = []
             for i in range(len(img_files)):
                 img_file = re.sub('\n', '', img_files[i])
-                print('processing %s' % img_file)
+                # print('processing %s' % img_file)
+                t0 = time.time()
                 image = imread(img_file)
+                t1 = time.time()
+                time_to_read_img += (t1 - t0)
                 x_range = image.shape[0] - crop_size
                 y_range = image.shape[1] - crop_size
                 xs = np.random.choice(x_range, nb_crop_per_image)
                 ys = np.random.choice(y_range, nb_crop_per_image)
                 probs = np.zeros(len(classes))
+
                 for (x, y) in zip(xs, ys):
                     crop = image[x:x+crop_size, y:y+crop_size]
                     crop = crop.reshape((1, crop_size, crop_size, 1))
+
                     logits_value = sess.run(logits,
                         feed_dict={images: crop})
                     exp_logits = np.exp(logits_value)
                     prob = exp_logits.T / np.sum(exp_logits, axis=1)
                     probs += prob.reshape(-1)
+
                 true_label = img_file.split('/')[-2]
                 pred_label = classes[np.argmax(probs)]
-
-                if true_label == pred_label:
-                    print('success')
-                    nb_success += 1
-                else:
-                    print('failure: %s -> %s' % 
-                        (true_label, pred_label))
-                    nb_failure += 1
-
+                t2 = time.time()
+                eval_times.append(t2 - t1)
+                time_to_eval_img += (t2 - t1)
+                # if true_label == pred_label:
+                #     print('success')
+                #     nb_success += 1
+                # else:
+                #     print('failure: %s -> %s' % 
+                #         (true_label, pred_label))
+                #     nb_failure += 1
+            end = time.time()
+            print('time elapsed %.3f sec, %.3f(read img) + %.3f(eval img)' 
+                % ((end - begin), time_to_read_img, time_to_eval_img))
             print('%d images processed with %d success and %d failure' %
                 (len(img_files), nb_success, nb_failure))
+            np.savetxt('eval_times.log', eval_times, fmt='%.4f')
 
 
 def main(argv=None):  # pylint: disable=unused-argument
