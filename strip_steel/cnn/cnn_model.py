@@ -9,8 +9,10 @@ tf.app.flags.DEFINE_boolean('use_fp16', False,
                             """Train the model using fp16.""")
 tf.app.flags.DEFINE_integer('crop_size', 64,
                            """Crop size.""")
+tf.app.flags.DEFINE_integer('nb_classes', 4,
+                           """Number of classes.""")
 
-NB_CLASSES = 4
+NB_CLASSES = FLAGS.nb_classes
 
 
 def _activation_summary(x):
