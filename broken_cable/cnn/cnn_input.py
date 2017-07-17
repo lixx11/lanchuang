@@ -83,7 +83,48 @@ class CNNTrainInput(object):
         return batch_images, batch_labels
         
 
+class CNNEvalInput(object):
+    """docstring for CNNTrainInput"""
+    def __init__(self, 
+                 data_file,
+                 crop_size=(100, 270)):
+        self.data_file = data_file
+        self.crop_size = crop_size
+        self.data = np.load(self.data_file)['frames']
+        self._frame_count = 0
+
+    def next_batch(self, batch_size=128):
+        batch_images = []
+        ending = False
+
+        # collect samples
+        data = self.data
+        n_batch = int(np.ceil(data.shape[0] / batch_size))
+        _, sx, sy = data.shape
+        cx, cy = self.crop_size
+        x0 = int((sx - cx)/2)
+        y0 = int((sy - cy)/2)
+        _fc = self._frame_count
+        batch_images = data[_fc:_fc+batch_size,
+                            x0:x0+cx,
+                            y0:y0+cy]
+        if batch_images.shape[0] < batch_size:
+            n_extra = batch_size - batch_images.shape[0]
+            extra_images = np.ones((n_extra, cx, cy))
+            batch_images = np.concatenate((batch_images, extra_images))
+        batch_images = batch_images.reshape((batch_size, 
+            self.crop_size[0], self.crop_size[1], 1))
+        self._frame_count += batch_size
+        if self._frame_count >= data.shape[0]:
+            ending = True
+        return batch_images, ending
+
+
 if __name__ == '__main__':
-    data_dir = '..'
-    train_input = CNNTrainInput(data_dir, crop_size=(100, 270))
-    images, labels = train_input.next_micro_batch(batch_size=128)
+    # data_dir = '..'
+    # train_input = CNNTrainInput(data_dir, crop_size=(100, 270))
+    # images, labels = train_input.next_micro_batch(batch_size=128)
+
+    data_file = '/Users/lixuanxuan/Repository/lanchuang/broken_cable/20170705-09-train-00.npz'
+    eval_input = CNNEvalInput(data_file, crop_size=(100, 270))
+    batch_images, ending = eval_input.next_batch()
