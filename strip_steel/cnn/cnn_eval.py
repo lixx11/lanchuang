@@ -1,16 +1,6 @@
 #!/usr/bin/env python
 
 import tensorflow as tf 
-import numpy as np
-from scipy.ndimage import imread
-
-import os
-import sys
-import re
-import time
-
-import cnn_model
-
 
 FLAGS = tf.app.flags.FLAGS
 tf.app.flags.DEFINE_string('data_file', None,
@@ -23,6 +13,20 @@ tf.app.flags.DEFINE_integer('nb_crop_per_image', 5,
                            """Number of crops for each image""")
 tf.app.flags.DEFINE_string('ckpt_file', None,
                             """Global step of ckpt file.""")
+tf.app.flags.DEFINE_bool('save_pb', True,
+                           """Save protobuf.""")
+tf.app.flags.DEFINE_string('pb_name', 'output.pb',
+                            """Filename of protobuf.""")
+
+import cnn_model
+
+import numpy as np
+from scipy.ndimage import imread
+
+import os
+import sys
+import re
+import time
 
 
 def eval():
@@ -59,6 +63,12 @@ def eval():
 
         # inference
         logits = cnn_model.inference(images)
+        if FLAGS.save_pb:
+            g = tf.get_default_graph()
+            with open(FLAGS.pb_name, 'wb') as f:
+                f.write(g.as_graph_def().SerializeToString())
+            print('write graphdef to %s' % FLAGS.pb_name)
+
         # Add ops to save and restore all the variables.
         saver = tf.train.Saver()
 
