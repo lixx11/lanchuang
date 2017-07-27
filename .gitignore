@@ -5,7 +5,10 @@
 # data files
 *.npy
 *.npz
+
+# model files
 *.pb
+*.model
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
