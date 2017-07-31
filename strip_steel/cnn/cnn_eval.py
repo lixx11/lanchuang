@@ -13,7 +13,9 @@ tf.app.flags.DEFINE_integer('nb_crop_per_image', 5,
                            """Number of crops for each image""")
 tf.app.flags.DEFINE_string('ckpt_file', None,
                             """Global step of ckpt file.""")
-tf.app.flags.DEFINE_bool('save_pb', True,
+tf.app.flags.DEFINE_string('class_def', None,
+                            """Class definition file.""")
+tf.app.flags.DEFINE_bool('save_pb', False,
                            """Save protobuf.""")
 tf.app.flags.DEFINE_string('pb_name', 'output.pb',
                             """Filename of protobuf.""")
@@ -24,6 +26,7 @@ import numpy as np
 from scipy.ndimage import imread
 
 import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
 import sys
 import re
 import time
@@ -33,6 +36,7 @@ def eval():
     # parameters and options
     data_file = FLAGS.data_file
     crop_size = FLAGS.crop_size
+    class_def = FLAGS.class_def
     batch_size = FLAGS.batch_size
     nb_crop_per_image = FLAGS.nb_crop_per_image
 
@@ -45,19 +49,15 @@ def eval():
     print('%d images to be evaluated' % len(img_files))
 
     # get classes
-    class_strs = []
-    for f in img_files:
-        class_strs.append(f.split('/')[-2])
-    classes = np.unique(class_strs).tolist()
-    classes.sort()
+    classes = []
+    with open(class_def, 'r') as f:
+        lines = f.readlines()
+    for line in lines:
+        classes.append(re.sub('\n', '', line))
 
 
     with tf.Graph().as_default():
-        if FLAGS.use_fp16:
-            FP = tf.float16
-        else:
-            FP = tf.float32
-        images = tf.placeholder(FP, 
+        images = tf.placeholder(tf.float32, 
                 shape=[batch_size, crop_size, crop_size, 1], 
                 name='image')
 
@@ -75,7 +75,6 @@ def eval():
         # run graph in session
         with tf.Session() as sess:
             init = tf.global_variables_initializer()
-            sess.run(init)
 
             saver.restore(sess, FLAGS.ckpt_file)
 
@@ -119,6 +118,7 @@ def eval():
                     prob = exp_logits.T / np.sum(exp_logits, axis=1)
                     prob = prob.reshape(-1)
 
+
                 pred_label = classes[np.argmax(prob)]
 
                 true_label = img_file.split('/')[-2]
@@ -133,11 +133,10 @@ def eval():
                         (prob.max(), true_label, pred_label))
                     nb_failure += 1
             end = time.time()
-            print('time elapsed %.3f sec, %.3f(read img) + %.3f(eval img)' 
+            print('time elapsed %.3f sec, %.3f(read) + %.3f(eval)' 
                 % ((end - begin), time_to_read_img, time_to_eval_img))
             print('%d images processed with %d success and %d failure' %
                 (len(img_files), nb_success, nb_failure))
-            np.savetxt('eval_times.log', eval_times, fmt='%.4f')
 
 
 def main(argv=None):  # pylint: disable=unused-argument
