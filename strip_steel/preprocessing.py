@@ -7,7 +7,6 @@ Usage:
 Options:
     --prefix=output                         Prefix of output file [default: output].
     --test-split=0.2                        Test dataset ratio [default: 0.2].
-    --save-split=True                       Whether to save splitting datasets [default: True].
 """
 
 
@@ -29,6 +28,8 @@ if __name__ == '__main__':
     test_split = float(argv['--test-split'])
     prefix = argv['--prefix']
 
+    class_def = 'classes.txt'
+
     # get classes
     file_list = glob('%s/*/*' % image_dir)
 
@@ -36,7 +37,9 @@ if __name__ == '__main__':
     for f in file_list:
         class_strs.append(f.split('/')[-2])
     classes = np.unique(class_strs).tolist()
-    classes.sort()
+    with open(class_def, 'w') as f:
+        for i in range(len(classes)):
+            f.write('%s\n' % classes[i])
 
     # dataset splitting
     class_strs = []
@@ -116,11 +119,10 @@ if __name__ == '__main__':
     np.savez('%s-data.npz' % prefix, images=images,
         labels=labels, crop_flags=crop_flags)
 
-    if argv['--save-split'] == 'True':
-        with open('%s-train.txt' % prefix, 'w') as f:
-            for i in range(len(train_files)):
-                f.write('%s\n' % train_files[i])   
+    with open('%s-train.txt' % prefix, 'w') as f:
+        for i in range(len(train_files)):
+            f.write('%s\n' % train_files[i])   
 
-        with open('%s-test.txt' % prefix, 'w') as f:
-            for i in range(len(test_files)):
-                f.write('%s\n' % test_files[i])
+    with open('%s-test.txt' % prefix, 'w') as f:
+        for i in range(len(test_files)):
+            f.write('%s\n' % test_files[i])
