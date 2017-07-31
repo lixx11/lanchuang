@@ -2,19 +2,18 @@
 
 
 import tensorflow as tf 
-import numpy as np
-from math import pow
 
-import cnn_model
-from cnn_input import CNNTrainInput
+import numpy as np
 
 import time
 from datetime import datetime
 from glob import glob
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
 
 FLAGS = tf.app.flags.FLAGS
 
-# Basic model parameters.
+
 tf.app.flags.DEFINE_string('data_file', None,
                            """Path of training data file""")
 tf.app.flags.DEFINE_integer('batch_size', 128,
@@ -24,7 +23,7 @@ tf.app.flags.DEFINE_string('train_dir', 'train',
                            """and checkpoint.""")
 tf.app.flags.DEFINE_integer('max_steps', 1000000,
                             """Number of batches to run.""")
-tf.app.flags.DEFINE_float('learning_rate', 0.01,
+tf.app.flags.DEFINE_float('learning_rate', 0.0001,
                             """Initial learning rate.""")
 tf.app.flags.DEFINE_integer('decay_steps', 10,
                             """Decay step for learning rate.""")
@@ -41,6 +40,9 @@ tf.app.flags.DEFINE_boolean('load_ckpt', False,
 tf.app.flags.DEFINE_integer('ckpt_step', 0,
                             """Global step of ckpt file.""")
 
+import cnn_model
+from cnn_input import CNNTrainInput
+
 
 def train():
     batch_size = FLAGS.batch_size
@@ -50,12 +52,8 @@ def train():
         global_step = tf.Variable(0, name='global_step', trainable=False)
         # input
         train_input = CNNTrainInput(FLAGS.data_file)
-        if FLAGS.use_fp16:
-            FP = tf.float16
-        else:
-            FP = tf.float32
 
-        images = tf.placeholder(FP, 
+        images = tf.placeholder(tf.float32, 
                 shape=[batch_size, crop_size, crop_size, 1], 
                 name='image')
         labels = tf.placeholder(tf.int64, shape=[batch_size], name='label')
