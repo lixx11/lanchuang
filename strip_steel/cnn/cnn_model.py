@@ -5,8 +5,6 @@ import tensorflow as tf
 import re
 
 FLAGS = tf.app.flags.FLAGS
-tf.app.flags.DEFINE_boolean('use_fp16', False,
-                            """Train the model using fp16.""")
 tf.app.flags.DEFINE_integer('crop_size', 64,
                            """Crop size.""")
 tf.app.flags.DEFINE_integer('nb_classes', 4,
@@ -41,8 +39,7 @@ def _variable_on_cpu(name, shape, initializer):
         Variable Tensor
     """
     with tf.device('/cpu:0'):
-        dtype = tf.float16 if FLAGS.use_fp16 else tf.float32
-        var = tf.get_variable(name, shape, initializer=initializer, dtype=dtype)
+        var = tf.get_variable(name, shape, initializer=initializer, dtype=tf.float32)
     return var
 
 
@@ -59,11 +56,10 @@ def _variable_with_weight_decay(name, shape, stddev, wd):
     Returns:
         Variable Tensor
     """
-    dtype = tf.float16 if FLAGS.use_fp16 else tf.float32
     var = _variable_on_cpu(
             name,
             shape,
-            tf.truncated_normal_initializer(stddev=stddev, dtype=dtype))
+            tf.truncated_normal_initializer(stddev=stddev, dtype=tf.float32))
     if wd is not None:
         weight_decay = tf.multiply(tf.nn.l2_loss(var), wd, name='weight_loss')
         tf.add_to_collection('losses', weight_decay)
